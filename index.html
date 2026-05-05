@@ -43,7 +43,7 @@
     align-items: center;
     justify-content: center;
     padding: 2vmin;
-    padding-bottom: 14vmin; /* shift content up within each panel */
+    padding-bottom: 28vmin;
   }
 
   #divider {
@@ -55,7 +55,7 @@
   #time-hhmm {
     font-family: 'Arial Black', Arial, sans-serif;
     font-weight: 900;
-    font-size: clamp(64px, 19vmin, 200px);
+    font-size: clamp(96px, 28vmin, 300px);
     color: #00ff00;
     line-height: 1;
     width: 100%;
@@ -66,7 +66,7 @@
   #time-ss {
     font-family: 'Arial Black', Arial, sans-serif;
     font-weight: 900;
-    font-size: clamp(64px, 19vmin, 200px);
+    font-size: clamp(96px, 28vmin, 300px);
     color: #00ff00;
     line-height: 1;
     width: 100%;
@@ -77,7 +77,7 @@
 
   #date-display {
     font-family: Arial, sans-serif;
-    font-size: clamp(16px, 4vmin, 48px);
+    font-size: clamp(24px, 6vmin, 72px);
     color: #00cc00;
     letter-spacing: 0.08em;
     margin-top: 2vmin;
@@ -88,7 +88,7 @@
   #hr-bpm {
     font-family: 'Arial Black', Arial, sans-serif;
     font-weight: 900;
-    font-size: clamp(72px, 22vmin, 220px);
+    font-size: clamp(108px, 33vmin, 330px);
     color: #00ff00;
     line-height: 1;
     transition: color 0.2s;
@@ -99,7 +99,7 @@
 
   #hr-label {
     font-family: Arial, sans-serif;
-    font-size: clamp(14px, 3.5vmin, 40px);
+    font-size: clamp(20px, 5vmin, 60px);
     color: #009900;
     letter-spacing: 0.2em;
     margin-top: 0.5vmin;
@@ -120,7 +120,7 @@
 
   #hr-stats .stat-label {
     font-family: Arial, sans-serif;
-    font-size: clamp(14px, 3.5vmin, 38px);
+    font-size: clamp(20px, 5vmin, 56px);
     color: #009900;
     letter-spacing: 0.2em;
   }
@@ -128,39 +128,19 @@
   #hr-stats .stat-val {
     font-family: 'Arial Black', Arial, sans-serif;
     font-weight: 900;
-    font-size: clamp(20px, 5.5vmin, 60px);
+    font-size: clamp(30px, 8vmin, 90px);
     color: #00cc00;
   }
-
-  /* ── FULLSCREEN BUTTON ── */
-  #fs-btn {
-    position: fixed;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 1vmin 4vmin;
-    background: #001a00;
-    color: #005500;
-    border: 1px solid #003300;
-    font-family: Arial, sans-serif;
-    font-size: clamp(10px, 2vmin, 18px);
-    letter-spacing: 0.12em;
-    cursor: pointer;
-    border-radius: 4px;
-    touch-action: manipulation;
-    z-index: 100;
-  }
-  #fs-btn:active { background: #003300; }
 
   /* ── CONNECT BUTTON ── */
   #connect-btn {
     margin-top: 2.5vmin;
-    padding: 1.2vmin 3vmin;
+    padding: 1.5vmin 4vmin;
     background: #001a00;
     color: #00ff00;
     border: 1px solid #00aa00;
     font-family: Arial, sans-serif;
-    font-size: clamp(12px, 2.8vmin, 28px);
+    font-size: clamp(14px, 3.5vmin, 36px);
     letter-spacing: 0.12em;
     cursor: pointer;
     border-radius: 4px;
@@ -170,7 +150,7 @@
 
   #hr-status {
     font-family: Arial, sans-serif;
-    font-size: clamp(10px, 2.2vmin, 22px);
+    font-size: clamp(11px, 2.5vmin, 26px);
     color: #006600;
     letter-spacing: 0.08em;
     margin-top: 0.8vmin;
@@ -215,12 +195,11 @@
       </span>
     </div>
     <button id="connect-btn" onclick="connectHR()">[ CONNECT STRAP ]</button>
-    <div id="hr-status">open via https for bluetooth</div>
+    <div id="hr-status">tap to connect polar h10</div>
   </div>
 
 </div>
 
-<button id="fs-btn" onclick="goFullscreen()">[ FULLSCREEN ]</button>
 <div id="wakelock-dot"></div>
 
 <script>
@@ -241,19 +220,20 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── FULLSCREEN ─────────────────────────────────────────
-function goFullscreen() {
-  const el = document.documentElement;
-  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
-  if (req) {
-    req.call(el).catch(e => console.warn('Fullscreen:', e));
+// ── AUTO FULLSCREEN on first tap ───────────────────────
+// Fullscreen requires a user gesture — we trigger on first touch
+let fullscreenDone = false;
+document.addEventListener('touchstart', async () => {
+  if (fullscreenDone) return;
+  fullscreenDone = true;
+  try {
+    const el  = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+    if (req) await req.call(el);
+  } catch(e) {
+    console.warn('Fullscreen:', e);
   }
-  // Hide the button once fullscreen is active
-  document.addEventListener('fullscreenchange', () => {
-    document.getElementById('fs-btn').style.display =
-      document.fullscreenElement ? 'none' : 'block';
-  });
-}
+}, { passive: true });
 
 // ── WAKE LOCK ──────────────────────────────────────────
 let wakeLock = null;
@@ -301,7 +281,7 @@ async function connectHR() {
   const status = document.getElementById('hr-status');
 
   if (!navigator.bluetooth) {
-    status.textContent = 'bluetooth requires https — use github pages url';
+    status.textContent = 'bluetooth unavailable — check brave://flags';
     return;
   }
 
@@ -340,8 +320,6 @@ async function connectHR() {
     btn.textContent    = '[ CONNECT STRAP ]';
   }
 }
-
-document.addEventListener('touchstart', () => {}, { passive: true });
 </script>
 </body>
 </html>
