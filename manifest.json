@@ -1,0 +1,25 @@
+{
+  "name": "Gym HUD",
+  "short_name": "Gym HUD",
+  "description": "Heart rate and clock heads-up display",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIiB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiI+CiAgPHJlY3Qgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiIHJ4PSIyNCIgZmlsbD0iIzAwMCIvPgogIDxsaW5lIHgxPSI5NiIgeTE9IjE2IiB4Mj0iOTYiIHkyPSIxNzYiIHN0cm9rZT0iIzAwNDQwMCIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGNpcmNsZSBjeD0iNDgiIGN5PSI5NiIgcj0iMzYiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSI2IiBmaWxsPSJub25lIi8+CiAgPGxpbmUgeDE9IjQ4IiB5MT0iOTYiIHgyPSI0OCIgeTI9IjcwIiBzdHJva2U9IiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGxpbmUgeDE9IjQ4IiB5MT0iOTYiIHgyPSI2NiIgeTI9Ijk2IiBzdHJva2U9IiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGNpcmNsZSBjeD0iNDgiIGN5PSI5NiIgcj0iNSIgZmlsbD0iIzAwZmYwMCIvPgogIDxwYXRoIGQ9Ik0xNDQgMTE4IEMxMzIgMTA0IDExNCA5MiAxMTQgNzYgQzExNCA2NSAxMjIgNTggMTMyIDYyIEMxMzcgNjQgMTQxIDY4IDE0NCA3MyBDMTQ3IDY4IDE1MSA2NCAxNTYgNjIgQzE2NiA1OCAxNzQgNjUgMTc0IDc2IEMxNzQgOTIgMTU2IDEwNCAxNDQgMTE4WiIgZmlsbD0iI2QwMDIxYiIvPgo8L3N2Zz4=",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+CiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIyNCIgZmlsbD0iIzAwMCIvPgogIDxsaW5lIHgxPSI5NiIgeTE9IjE2IiB4Mj0iOTYiIHkyPSIxNzYiIHN0cm9rZT0iIzAwNDQwMCIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGNpcmNsZSBjeD0iNDgiIGN5PSI5NiIgcj0iMzYiIHN0cm9rZT0iIzAwZmYwMCIgc3Ryb2tlLXdpZHRoPSI2IiBmaWxsPSJub25lIi8+CiAgPGxpbmUgeDE9IjQ4IiB5MT0iOTYiIHgyPSI0OCIgeTI9IjcwIiBzdHJva2U9IiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGxpbmUgeDE9IjQ4IiB5MT0iOTYiIHgyPSI2NiIgeTI9Ijk2IiBzdHJva2U9IiMwMGZmMDAiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGNpcmNsZSBjeD0iNDgiIGN5PSI5NiIgcj0iNSIgZmlsbD0iIzAwZmYwMCIvPgogIDxwYXRoIGQ9Ik0xNDQgMTE4IEMxMzIgMTA0IDExNCA5MiAxMTQgNzYgQzExNCA2NSAxMjIgNTggMTMyIDYyIEMxMzcgNjQgMTQxIDY4IDE0NCA3MyBDMTQ3IDY4IDE1MSA2NCAxNTYgNjIgQzE2NiA1OCAxNzQgNjUgMTc0IDc2IEMxNzQgOTIgMTU2IDEwNCAxNDQgMTE4WiIgZmlsbD0iI2QwMDIxYiIvPgo8L3N2Zz4=",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
