@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Gym HUD">
+<link rel="manifest" href="manifest.json">
 <title>Gym HUD</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -217,6 +220,14 @@
 <div id="wakelock-dot"></div>
 
 <script>
+// ── SERVICE WORKER ─────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .catch(err => console.warn('SW:', err));
+  });
+}
+
 // ── CLOCK ──────────────────────────────────────────────
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -243,9 +254,7 @@ async function tryFullscreen() {
     const el  = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
     if (req) await req.call(el);
-  } catch(e) {
-    console.warn('Fullscreen:', e);
-  }
+  } catch(e) {}
 }
 
 document.addEventListener('fullscreenchange', () => {
@@ -264,9 +273,7 @@ async function requestWakeLock() {
     wakeLock = await navigator.wakeLock.request('screen');
     dot.classList.add('active');
     wakeLock.addEventListener('release', () => dot.classList.remove('active'));
-  } catch(e) {
-    console.warn('Wake lock:', e);
-  }
+  } catch(e) {}
 }
 
 document.addEventListener('visibilitychange', async () => {
