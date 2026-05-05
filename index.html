@@ -84,25 +84,23 @@
     text-align: center;
   }
 
-  /* ── HR PANEL ── */
-  /* Same font size as time */
+  /* ── HR PANEL — Polar red ── */
   #hr-bpm {
     font-family: 'Arial Black', Arial, sans-serif;
     font-weight: 900;
     font-size: clamp(96px, 28vmin, 300px);
-    color: #00ff00;
+    color: #d6001c;
     line-height: 1;
     transition: color 0.2s;
     text-align: center;
   }
 
-  #hr-bpm.pulse { color: #afffaf; }
+  #hr-bpm.pulse { color: #ff4d63; }
 
-  /* BPM label — matches date */
   #hr-label {
     font-family: Arial, sans-serif;
-    font-size: clamp(48px, 12vmin, 144px);
-    color: #009900;
+    font-size: clamp(24px, 6vmin, 72px);
+    color: #a00015;
     letter-spacing: 0.2em;
     margin-top: 0.5vmin;
   }
@@ -120,29 +118,27 @@
     gap: 0.3em;
   }
 
-  /* AVG/MAX labels — half the size of values */
   #hr-stats .stat-label {
     font-family: Arial, sans-serif;
     font-size: clamp(24px, 6vmin, 72px);
-    color: #009900;
+    color: #a00015;
     letter-spacing: 0.2em;
   }
 
-  /* AVG/MAX values — kept at previous size */
   #hr-stats .stat-val {
     font-family: 'Arial Black', Arial, sans-serif;
     font-weight: 900;
     font-size: clamp(48px, 12vmin, 144px);
-    color: #00cc00;
+    color: #d6001c;
   }
 
   /* ── CONNECT BUTTON ── */
   #connect-btn {
     margin-top: 2.5vmin;
     padding: 1.5vmin 4vmin;
-    background: #001a00;
-    color: #00ff00;
-    border: 1px solid #00aa00;
+    background: #1a0000;
+    color: #d6001c;
+    border: 1px solid #a00015;
     font-family: Arial, sans-serif;
     font-size: clamp(14px, 3.5vmin, 36px);
     letter-spacing: 0.12em;
@@ -150,13 +146,12 @@
     border-radius: 4px;
     touch-action: manipulation;
   }
-  #connect-btn:active { background: #003300; }
+  #connect-btn:active { background: #330000; }
 
-  /* Status — reduced another 20% from last version */
   #hr-status {
     font-family: Arial, sans-serif;
     font-size: clamp(13px, 3.6vmin, 43px);
-    color: #006600;
+    color: #880012;
     letter-spacing: 0.05em;
     margin-top: 1.5vmin;
     min-height: 1.4em;
@@ -222,7 +217,6 @@
 <div id="wakelock-dot"></div>
 
 <script>
-// ── CLOCK ──────────────────────────────────────────────
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -239,11 +233,10 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── FULLSCREEN — retriggers on every tap if not fullscreen ──
 const fsHint = document.getElementById('fs-hint');
 
 async function tryFullscreen() {
-  if (document.fullscreenElement) return; // already fullscreen, do nothing
+  if (document.fullscreenElement) return;
   try {
     const el  = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
@@ -253,7 +246,6 @@ async function tryFullscreen() {
   }
 }
 
-// Show/hide hint based on fullscreen state
 document.addEventListener('fullscreenchange', () => {
   fsHint.style.opacity = document.fullscreenElement ? '0' : '1';
 });
@@ -261,7 +253,6 @@ document.addEventListener('fullscreenchange', () => {
 document.addEventListener('click', tryFullscreen);
 document.addEventListener('touchend', tryFullscreen, { passive: true });
 
-// ── WAKE LOCK ──────────────────────────────────────────
 let wakeLock = null;
 const dot = document.getElementById('wakelock-dot');
 
@@ -281,7 +272,6 @@ document.addEventListener('visibilitychange', async () => {
 
 requestWakeLock();
 
-// ── HEART RATE VIA WEB BLUETOOTH ──────────────────────
 let hrReadings = [], hrMax = 0;
 
 function updateHRDisplay(bpm) {
