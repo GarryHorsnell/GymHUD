@@ -43,6 +43,7 @@
     align-items: center;
     justify-content: center;
     padding: 2vmin;
+    padding-bottom: 14vmin; /* shift content up within each panel */
   }
 
   #divider {
@@ -108,8 +109,6 @@
     display: flex;
     gap: 6vmin;
     margin-top: 2vmin;
-    color: #00bb00;
-    letter-spacing: 0.1em;
   }
 
   #hr-stats span {
@@ -133,6 +132,26 @@
     color: #00cc00;
   }
 
+  /* ── FULLSCREEN BUTTON ── */
+  #fs-btn {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1vmin 4vmin;
+    background: #001a00;
+    color: #005500;
+    border: 1px solid #003300;
+    font-family: Arial, sans-serif;
+    font-size: clamp(10px, 2vmin, 18px);
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    border-radius: 4px;
+    touch-action: manipulation;
+    z-index: 100;
+  }
+  #fs-btn:active { background: #003300; }
+
   /* ── CONNECT BUTTON ── */
   #connect-btn {
     margin-top: 2.5vmin;
@@ -147,7 +166,6 @@
     border-radius: 4px;
     touch-action: manipulation;
   }
-
   #connect-btn:active { background: #003300; }
 
   #hr-status {
@@ -158,6 +176,7 @@
     margin-top: 0.8vmin;
     min-height: 1.4em;
     text-align: center;
+    padding: 0 2vmin;
   }
 
   #wakelock-dot {
@@ -196,14 +215,16 @@
       </span>
     </div>
     <button id="connect-btn" onclick="connectHR()">[ CONNECT STRAP ]</button>
-    <div id="hr-status">tap to pair via bluetooth</div>
+    <div id="hr-status">open via https for bluetooth</div>
   </div>
 
 </div>
 
+<button id="fs-btn" onclick="goFullscreen()">[ FULLSCREEN ]</button>
 <div id="wakelock-dot"></div>
 
 <script>
+// ── CLOCK ──────────────────────────────────────────────
 const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -220,6 +241,21 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
+// ── FULLSCREEN ─────────────────────────────────────────
+function goFullscreen() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+  if (req) {
+    req.call(el).catch(e => console.warn('Fullscreen:', e));
+  }
+  // Hide the button once fullscreen is active
+  document.addEventListener('fullscreenchange', () => {
+    document.getElementById('fs-btn').style.display =
+      document.fullscreenElement ? 'none' : 'block';
+  });
+}
+
+// ── WAKE LOCK ──────────────────────────────────────────
 let wakeLock = null;
 const dot = document.getElementById('wakelock-dot');
 
@@ -239,6 +275,7 @@ document.addEventListener('visibilitychange', async () => {
 
 requestWakeLock();
 
+// ── HEART RATE VIA WEB BLUETOOTH ──────────────────────
 let hrReadings = [], hrMax = 0;
 
 function updateHRDisplay(bpm) {
@@ -264,7 +301,7 @@ async function connectHR() {
   const status = document.getElementById('hr-status');
 
   if (!navigator.bluetooth) {
-    status.textContent = 'bluetooth not available in this browser';
+    status.textContent = 'bluetooth requires https — use github pages url';
     return;
   }
 
