@@ -246,13 +246,16 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // ── FULLSCREEN ─────────────────────────────────────────
-// Auto-enters fullscreen on launch. On Android, swipe-up is a system gesture
-// outside the webview so we detect exit via fullscreenchange and suppress
-// re-entry for 2500ms so the nav bar stays visible. Tap to re-enter.
+// On Android the swipe-up nav gesture happens outside the webview, so we
+// can't detect it via touch events. We use fullscreenchange to detect exit
+// and suppress re-entry for 2500ms. Key fix: when the PWA resumes from
+// background (visibilitychange) we must NOT suppress — so we guard with
+// an fsResuming flag.
 
 const fsHint = document.getElementById('fs-hint');
 
-let fsSuppress = false;
+let fsSuppress  = false;
+let fsResuming  = false;
 let fsSuppressTimer = null;
 
 function suppressFullscreen(ms) {
@@ -273,18 +276,30 @@ async function tryFullscreen() {
 
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement) {
-    suppressFullscreen(2500);
-    fsHint.style.opacity = '1';
+    if (fsResuming) {
+      // App came back from background — re-enter fullscreen immediately, no suppress
+      fsResuming = false;
+      setTimeout(tryFullscreen, 100);
+    } else {
+      // Genuine user swipe-up — suppress so nav bar stays visible
+      suppressFullscreen(2500);
+      fsHint.style.opacity = '1';
+    }
   } else {
     fsHint.style.opacity = '0';
   }
 });
 
-document.addEventListener('click', tryFullscreen);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    fsResuming = true;
+    setTimeout(tryFullscreen, 150);
+  }
+});
+
+document.addEventListener('click',    tryFullscreen);
 document.addEventListener('touchend', tryFullscreen, { passive: true });
 
-// Auto-fullscreen on launch (browsers require a user gesture on first load,
-// so we attempt immediately and also on the first touch/click)
 tryFullscreen();
 
 // ── WAKE LOCK ──────────────────────────────────────────
@@ -334,12 +349,13 @@ async function connectToDevice(device) {
   status.textContent = `connecting to ${device.name || 'device'}...`;
 
   device.addEventListener('gattserverdisconnected', () => {
-    status.textContent = 'disconnected — tap to reconnect';
+    isConnected = false;
+    status.textContent = 'disconnected — reconnecting...';
     btn.textContent    = '[ RECONNECT ]';
     btn.style.display  = 'block';
     document.getElementById('hr-bpm').textContent = '--';
-    // Auto-retry once after 3s
-    setTimeout(() => autoConnect(), 3000);
+    // Auto-retry
+    autoConnectTimer = setTimeout(autoConnect, 3000);
   });
 
   const server  = await device.gatt.connect();
@@ -351,29 +367,44 @@ async function connectToDevice(device) {
     updateHRDisplay(parseHR(e.target.value));
   });
 
+  isConnected = true;
   status.textContent = `● live  ${device.name || 'strap'}`;
   btn.style.display  = 'none';
 }
 
-// Auto-connect: silently tries previously paired heart rate devices
+// Auto-connect: retries every 4s until the strap is found and connected.
+// getDevices() returns devices previously granted permission — no user prompt.
+// The strap must be advertising (awake) for GATT connect to succeed.
+let autoConnectTimer = null;
+let isConnected = false;
+
 async function autoConnect() {
-  if (!navigator.bluetooth) return;
+  if (isConnected || !navigator.bluetooth) return;
   try {
     const devices = await navigator.bluetooth.getDevices();
     const hrDevice = devices.find(d =>
       d.name && (d.name.toLowerCase().includes('polar') ||
                  d.name.toLowerCase().includes('h10') ||
                  d.name.toLowerCase().includes('heart'))
-    ) || devices[0]; // fall back to first paired device
+    ) || (devices.length ? devices[0] : null);
 
-    if (!hrDevice) return; // nothing paired yet — user must connect manually first
+    if (!hrDevice) {
+      // Nothing paired yet — show connect button, stop retrying
+      document.getElementById('hr-status').textContent = 'tap to connect polar h10';
+      return;
+    }
 
-    const status = document.getElementById('hr-status');
-    status.textContent = `auto-connecting to ${hrDevice.name || 'strap'}...`;
+    document.getElementById('hr-status').textContent =
+      `auto-connecting to ${hrDevice.name || 'strap'}...`;
     await connectToDevice(hrDevice);
+    // Success — isConnected set inside connectToDevice
   } catch(e) {
-    // Silent fail — user can connect manually
-    document.getElementById('hr-status').textContent = 'tap to connect polar h10';
+    // Strap not advertising yet — retry after 4s
+    if (!isConnected) {
+      document.getElementById('hr-status').textContent =
+        `waiting for strap... (retry in 4s)`;
+      autoConnectTimer = setTimeout(autoConnect, 4000);
+    }
   }
 }
 
@@ -386,6 +417,8 @@ async function connectHR() {
     status.textContent = 'bluetooth unavailable — check brave://flags';
     return;
   }
+
+  clearTimeout(autoConnectTimer); // stop auto-retry while user picks manually
 
   try {
     status.textContent = 'scanning...';
@@ -404,8 +437,8 @@ async function connectHR() {
   }
 }
 
-// On launch: attempt auto-connect after a short delay
-window.addEventListener('load', () => setTimeout(autoConnect, 1000));
+// On launch: attempt auto-connect after 1.5s (give BT stack time to init)
+window.addEventListener('load', () => setTimeout(autoConnect, 1500));
 </script>
 </body>
 </html>
