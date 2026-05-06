@@ -1,22 +1,406 @@
-const CACHE = 'gym-hud-v6';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gym HUD">
+<link rel="manifest" href="manifest.json">
+<title>Gym HUD</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-  self.skipWaiting();
-});
+  html, body {
+    width: 100%; height: 100%;
+    background: #000;
+    color: #00ff00;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+    touch-action: none;
+    /* Cover any status bar area with black */
+    padding-top: env(safe-area-inset-top);
+    padding-top: constant(safe-area-inset-top);
+  }
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+  #app {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  @media (orientation: portrait) {
+    #app { flex-direction: column; }
+    .panel { width: 100%; height: 50%; }
+    #divider { width: 100%; height: 2px; }
+  }
+
+  @media (orientation: landscape) {
+    #app { flex-direction: row; }
+    .panel { width: 50%; height: 100%; }
+    #divider { width: 2px; height: 100%; }
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2vmin;
+    padding-bottom: 28vmin;
+  }
+
+  #divider { background: #004400; flex-shrink: 0; }
+
+  /* ── CLOCK PANEL ── */
+  #time-hhmm {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-weight: 900;
+    font-size: clamp(96px, 28vmin, 300px);
+    color: #00ff00;
+    line-height: 1;
+    width: 100%;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  #time-ss {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-weight: 900;
+    font-size: clamp(96px, 28vmin, 300px);
+    color: #00ff00;
+    line-height: 1;
+    width: 100%;
+    text-align: center;
+    letter-spacing: 0.02em;
+    margin-top: 0.5vmin;
+  }
+
+  #date-display {
+    font-family: Arial, sans-serif;
+    font-size: clamp(48px, 12vmin, 144px);
+    color: #00cc00;
+    letter-spacing: 0.08em;
+    margin-top: 2vmin;
+    text-align: center;
+  }
+
+  /* ── HR PANEL ── */
+  #hr-bpm {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-weight: 900;
+    font-size: clamp(96px, 28vmin, 300px);
+    color: #d0021b;
+    line-height: 1;
+    transition: color 0.2s;
+    text-align: center;
+  }
+
+  #hr-bpm.pulse { color: #ff4d63; }
+
+  #hr-label {
+    font-family: Arial, sans-serif;
+    font-size: clamp(24px, 6vmin, 72px);
+    color: #a00015;
+    letter-spacing: 0.2em;
+    margin-top: 0.5vmin;
+  }
+
+  #hr-stats {
+    display: flex;
+    gap: 6vmin;
+    margin-top: 2vmin;
+  }
+
+  #hr-stats span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3em;
+  }
+
+  #hr-stats .stat-label {
+    font-family: Arial, sans-serif;
+    font-size: clamp(24px, 6vmin, 72px);
+    color: #a00015;
+    letter-spacing: 0.2em;
+  }
+
+  #hr-stats .stat-val {
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-weight: 900;
+    font-size: clamp(48px, 12vmin, 144px);
+    color: #d0021b;
+  }
+
+  /* ── CONNECT BUTTON ── */
+  #connect-btn {
+    margin-top: 2.5vmin;
+    padding: 1.5vmin 4vmin;
+    background: #1a0000;
+    color: #d0021b;
+    border: 1px solid #a00015;
+    font-family: Arial, sans-serif;
+    font-size: clamp(14px, 3.5vmin, 36px);
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    border-radius: 4px;
+    touch-action: manipulation;
+  }
+  #connect-btn:active { background: #330000; }
+
+  #hr-status {
+    font-family: Arial, sans-serif;
+    font-size: clamp(13px, 3.6vmin, 43px);
+    color: #800010;
+    letter-spacing: 0.05em;
+    margin-top: 1.5vmin;
+    min-height: 1.4em;
+    text-align: center;
+    padding: 0 2vmin;
+  }
+
+  #wakelock-dot {
+    position: fixed;
+    top: 6px; right: 8px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #003300;
+  }
+  #wakelock-dot.active { background: #005500; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div class="panel" id="clock-panel">
+    <div id="time-hhmm">00:00</div>
+    <div id="time-ss">00</div>
+    <div id="date-display">---</div>
+  </div>
+
+  <div id="divider"></div>
+
+  <div class="panel" id="hr-panel">
+    <div id="hr-bpm">--</div>
+    <div id="hr-label">BPM</div>
+    <div id="hr-stats">
+      <span>
+        <span class="stat-label">AVG</span>
+        <span class="stat-val" id="hr-avg">--</span>
+      </span>
+      <span>
+        <span class="stat-label">MAX</span>
+        <span class="stat-val" id="hr-max">--</span>
+      </span>
+    </div>
+    <button id="connect-btn" onclick="connectHR()">[ CONNECT STRAP ]</button>
+    <div id="hr-status">searching for strap...</div>
+  </div>
+
+</div>
+
+<div id="wakelock-dot"></div>
+
+<script>
+// ── SERVICE WORKER ─────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () =>
+    navigator.serviceWorker.register('sw.js').catch(() => {})
   );
-  self.clients.claim();
-});
+}
 
-self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
+// ── CLOCK ──────────────────────────────────────────────
+const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function pad2(n) { return String(n).padStart(2,'0'); }
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('time-hhmm').textContent =
+    `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  document.getElementById('time-ss').textContent = pad2(now.getSeconds());
+  document.getElementById('date-display').textContent =
+    `${DAYS[now.getDay()]} ${pad2(now.getDate())} ${MONTHS[now.getMonth()]}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── FULLSCREEN ─────────────────────────────────────────
+// PWA installed app: manifest display:fullscreen handles it — no JS needed.
+// Browser tab: JS fullscreen on tap, with 2.5s suppress after swipe-up exit.
+
+const isPWA = window.matchMedia('(display-mode: fullscreen)').matches
+           || window.navigator.standalone === true;
+
+let fsSuppress = false;
+let fsSuppressTimer = null;
+
+function suppressFullscreen(ms) {
+  fsSuppress = true;
+  clearTimeout(fsSuppressTimer);
+  fsSuppressTimer = setTimeout(() => { fsSuppress = false; }, ms);
+}
+
+async function tryFullscreen() {
+  if (isPWA) return;                    // PWA handles its own fullscreen
+  if (document.fullscreenElement) return;
+  if (fsSuppress) return;
+  try {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) await req.call(el);
+  } catch(e) {}
+}
+
+if (!isPWA) {
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+      suppressFullscreen(2500);
+    }
+  });
+  document.addEventListener('click',    tryFullscreen);
+  document.addEventListener('touchend', tryFullscreen, { passive: true });
+  tryFullscreen();
+}
+
+// ── WAKE LOCK ──────────────────────────────────────────
+const dot = document.getElementById('wakelock-dot');
+
+async function requestWakeLock() {
+  try {
+    const wl = await navigator.wakeLock.request('screen');
+    dot.classList.add('active');
+    wl.addEventListener('release', () => dot.classList.remove('active'));
+  } catch(e) {}
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') requestWakeLock();
 });
+requestWakeLock();
+
+// ── HEART RATE ─────────────────────────────────────────
+let hrReadings = [], hrMax = 0;
+let isConnected = false;
+let autoTimer = null;
+
+function updateHRDisplay(bpm) {
+  const el = document.getElementById('hr-bpm');
+  el.textContent = bpm;
+  el.classList.add('pulse');
+  setTimeout(() => el.classList.remove('pulse'), 200);
+  hrReadings.push(bpm);
+  if (bpm > hrMax) hrMax = bpm;
+  const avg = Math.round(hrReadings.reduce((a,b) => a+b, 0) / hrReadings.length);
+  document.getElementById('hr-avg').textContent = avg;
+  document.getElementById('hr-max').textContent = hrMax;
+}
+
+function parseHR(value) {
+  const flags = value.getUint8(0);
+  return (flags & 0x01) ? value.getUint16(1, true) : value.getUint8(1);
+}
+
+async function connectToDevice(device) {
+  const status = document.getElementById('hr-status');
+  const btn    = document.getElementById('connect-btn');
+
+  status.textContent = `connecting to ${device.name || 'device'}...`;
+
+  // Remove any old listener before adding new one
+  const onDisconnect = () => {
+    isConnected = false;
+    document.getElementById('hr-bpm').textContent = '--';
+    status.textContent = 'disconnected — retrying...';
+    btn.textContent    = '[ RECONNECT ]';
+    btn.style.display  = 'block';
+    autoTimer = setTimeout(autoConnect, 4000);
+  };
+  device.removeEventListener('gattserverdisconnected', onDisconnect);
+  device.addEventListener('gattserverdisconnected', onDisconnect);
+
+  const server  = await device.gatt.connect();
+  const service = await server.getPrimaryService('heart_rate');
+  const char    = await service.getCharacteristic('heart_rate_measurement');
+  await char.startNotifications();
+  char.addEventListener('characteristicvaluechanged',
+    e => updateHRDisplay(parseHR(e.target.value)));
+
+  isConnected = true;
+  status.textContent = `● live  ${device.name || 'strap'}`;
+  btn.style.display  = 'none';
+}
+
+async function autoConnect() {
+  if (isConnected || !navigator.bluetooth) return;
+  clearTimeout(autoTimer);
+
+  const status = document.getElementById('hr-status');
+
+  try {
+    // getDevices() returns previously-permitted devices without a prompt
+    const devices = await navigator.bluetooth.getDevices();
+
+    if (!devices.length) {
+      // Nothing ever paired — wait for manual connect
+      status.textContent = 'tap to connect polar h10';
+      return;
+    }
+
+    // Prefer a polar/heart device, else first in list
+    const dev = devices.find(d => {
+      const n = (d.name || '').toLowerCase();
+      return n.includes('polar') || n.includes('h10') || n.includes('heart');
+    }) || devices[0];
+
+    status.textContent = `auto-connecting to ${dev.name || 'device'}...`;
+    await connectToDevice(dev);
+
+  } catch(e) {
+    if (!isConnected) {
+      status.textContent = 'waiting for strap...';
+      autoTimer = setTimeout(autoConnect, 4000);
+    }
+  }
+}
+
+async function connectHR() {
+  if (!navigator.bluetooth) {
+    document.getElementById('hr-status').textContent =
+      'bluetooth not available';
+    return;
+  }
+
+  clearTimeout(autoTimer);
+  const btn    = document.getElementById('connect-btn');
+  const status = document.getElementById('hr-status');
+
+  try {
+    status.textContent = 'scanning...';
+    btn.textContent    = '[ SCANNING... ]';
+
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: ['heart_rate'] }],
+      optionalServices: ['heart_rate']
+    });
+
+    await connectToDevice(device);
+
+  } catch(e) {
+    status.textContent = e.name === 'NotFoundError'
+      ? 'no device selected'
+      : `error: ${e.message}`;
+    btn.textContent = '[ CONNECT STRAP ]';
+  }
+}
+
+// Kick off auto-connect 1.5s after load
+window.addEventListener('load', () => setTimeout(autoConnect, 1500));
+</script>
+</body>
+</html>
