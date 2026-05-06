@@ -246,10 +246,25 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // ── FULLSCREEN ─────────────────────────────────────────
+// On Android the swipe-up gesture is a system gesture outside the webview,
+// so touchstart never fires for it. Instead we detect fullscreen EXIT via
+// fullscreenchange and suppress re-entry for 2500ms, giving the nav bar
+// time to stay visible. A deliberate tap anywhere re-enters fullscreen.
+
 const fsHint = document.getElementById('fs-hint');
+
+let fsSuppress = false;
+let fsSuppressTimer = null;
+
+function suppressFullscreen(ms) {
+  fsSuppress = true;
+  clearTimeout(fsSuppressTimer);
+  fsSuppressTimer = setTimeout(() => { fsSuppress = false; }, ms);
+}
 
 async function tryFullscreen() {
   if (document.fullscreenElement) return;
+  if (fsSuppress) return;
   try {
     const el  = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
@@ -258,9 +273,16 @@ async function tryFullscreen() {
 }
 
 document.addEventListener('fullscreenchange', () => {
-  fsHint.style.opacity = document.fullscreenElement ? '0' : '1';
+  if (!document.fullscreenElement) {
+    // Fullscreen was exited (swipe-up or back) — suppress re-entry for 2.5s
+    suppressFullscreen(2500);
+    fsHint.style.opacity = '1';
+  } else {
+    fsHint.style.opacity = '0';
+  }
 });
 
+// Tap anywhere (after suppress window) to re-enter fullscreen
 document.addEventListener('click', tryFullscreen);
 document.addEventListener('touchend', tryFullscreen, { passive: true });
 
