@@ -246,10 +246,9 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // ── FULLSCREEN ─────────────────────────────────────────
-// On Android the swipe-up gesture is a system gesture outside the webview,
-// so touchstart never fires for it. Instead we detect fullscreen EXIT via
-// fullscreenchange and suppress re-entry for 2500ms, giving the nav bar
-// time to stay visible. A deliberate tap anywhere re-enters fullscreen.
+// Auto-enters fullscreen on launch. On Android, swipe-up is a system gesture
+// outside the webview so we detect exit via fullscreenchange and suppress
+// re-entry for 2500ms so the nav bar stays visible. Tap to re-enter.
 
 const fsHint = document.getElementById('fs-hint');
 
@@ -274,7 +273,6 @@ async function tryFullscreen() {
 
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement) {
-    // Fullscreen was exited (swipe-up or back) — suppress re-entry for 2.5s
     suppressFullscreen(2500);
     fsHint.style.opacity = '1';
   } else {
@@ -282,9 +280,12 @@ document.addEventListener('fullscreenchange', () => {
   }
 });
 
-// Tap anywhere (after suppress window) to re-enter fullscreen
 document.addEventListener('click', tryFullscreen);
 document.addEventListener('touchend', tryFullscreen, { passive: true });
+
+// Auto-fullscreen on launch (browsers require a user gesture on first load,
+// so we attempt immediately and also on the first touch/click)
+tryFullscreen();
 
 // ── WAKE LOCK ──────────────────────────────────────────
 let wakeLock = null;
@@ -325,6 +326,58 @@ function parseHR(value) {
   return (flags & 0x01) ? value.getUint16(1, true) : value.getUint8(1);
 }
 
+// Shared connection logic — works for both auto and manual connect
+async function connectToDevice(device) {
+  const btn    = document.getElementById('connect-btn');
+  const status = document.getElementById('hr-status');
+
+  status.textContent = `connecting to ${device.name || 'device'}...`;
+
+  device.addEventListener('gattserverdisconnected', () => {
+    status.textContent = 'disconnected — tap to reconnect';
+    btn.textContent    = '[ RECONNECT ]';
+    btn.style.display  = 'block';
+    document.getElementById('hr-bpm').textContent = '--';
+    // Auto-retry once after 3s
+    setTimeout(() => autoConnect(), 3000);
+  });
+
+  const server  = await device.gatt.connect();
+  const service = await server.getPrimaryService('heart_rate');
+  const char    = await service.getCharacteristic('heart_rate_measurement');
+
+  await char.startNotifications();
+  char.addEventListener('characteristicvaluechanged', (e) => {
+    updateHRDisplay(parseHR(e.target.value));
+  });
+
+  status.textContent = `● live  ${device.name || 'strap'}`;
+  btn.style.display  = 'none';
+}
+
+// Auto-connect: silently tries previously paired heart rate devices
+async function autoConnect() {
+  if (!navigator.bluetooth) return;
+  try {
+    const devices = await navigator.bluetooth.getDevices();
+    const hrDevice = devices.find(d =>
+      d.name && (d.name.toLowerCase().includes('polar') ||
+                 d.name.toLowerCase().includes('h10') ||
+                 d.name.toLowerCase().includes('heart'))
+    ) || devices[0]; // fall back to first paired device
+
+    if (!hrDevice) return; // nothing paired yet — user must connect manually first
+
+    const status = document.getElementById('hr-status');
+    status.textContent = `auto-connecting to ${hrDevice.name || 'strap'}...`;
+    await connectToDevice(hrDevice);
+  } catch(e) {
+    // Silent fail — user can connect manually
+    document.getElementById('hr-status').textContent = 'tap to connect polar h10';
+  }
+}
+
+// Manual connect — shows browser device picker
 async function connectHR() {
   const btn    = document.getElementById('connect-btn');
   const status = document.getElementById('hr-status');
@@ -343,32 +396,16 @@ async function connectHR() {
       optionalServices: ['heart_rate']
     });
 
-    status.textContent = `connecting to ${device.name || 'device'}...`;
-
-    device.addEventListener('gattserverdisconnected', () => {
-      status.textContent = 'disconnected — tap to reconnect';
-      btn.textContent    = '[ RECONNECT ]';
-      btn.style.display  = 'block';
-      document.getElementById('hr-bpm').textContent = '--';
-    });
-
-    const server  = await device.gatt.connect();
-    const service = await server.getPrimaryService('heart_rate');
-    const char    = await service.getCharacteristic('heart_rate_measurement');
-
-    await char.startNotifications();
-    char.addEventListener('characteristicvaluechanged', (e) => {
-      updateHRDisplay(parseHR(e.target.value));
-    });
-
-    status.textContent = `● live  ${device.name || 'strap'}`;
-    btn.style.display  = 'none';
+    await connectToDevice(device);
 
   } catch(e) {
     status.textContent = e.name === 'NotFoundError' ? 'no device selected' : `error: ${e.message}`;
     btn.textContent    = '[ CONNECT STRAP ]';
   }
 }
+
+// On launch: attempt auto-connect after a short delay
+window.addEventListener('load', () => setTimeout(autoConnect, 1000));
 </script>
 </body>
 </html>
