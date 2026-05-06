@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Gym HUD">
 <link rel="manifest" href="manifest.json">
 <title>Gym HUD</title>
@@ -20,9 +20,6 @@
     font-family: Arial, sans-serif;
     overflow: hidden;
     touch-action: none;
-    /* Cover any status bar area with black */
-    padding-top: env(safe-area-inset-top);
-    padding-top: constant(safe-area-inset-top);
   }
 
   #app {
@@ -52,7 +49,10 @@
     padding-bottom: 28vmin;
   }
 
-  #divider { background: #004400; flex-shrink: 0; }
+  #divider {
+    background: #004400;
+    flex-shrink: 0;
+  }
 
   /* ── CLOCK PANEL ── */
   #time-hhmm {
@@ -87,7 +87,7 @@
     text-align: center;
   }
 
-  /* ── HR PANEL ── */
+  /* ── HR PANEL — Polar red ── */
   #hr-bpm {
     font-family: 'Arial Black', Arial, sans-serif;
     font-weight: 900;
@@ -162,6 +162,19 @@
     padding: 0 2vmin;
   }
 
+  /* ── FULLSCREEN HINT ── */
+  #fs-hint {
+    position: fixed;
+    bottom: 16px;
+    width: 100%;
+    text-align: center;
+    font-family: Arial, sans-serif;
+    font-size: clamp(11px, 2.5vmin, 22px);
+    color: #003300;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+
   #wakelock-dot {
     position: fixed;
     top: 6px; right: 8px;
@@ -198,19 +211,21 @@
       </span>
     </div>
     <button id="connect-btn" onclick="connectHR()">[ CONNECT STRAP ]</button>
-    <div id="hr-status">searching for strap...</div>
+    <div id="hr-status">tap to connect polar h10</div>
   </div>
 
 </div>
 
+<div id="fs-hint">tap anywhere for fullscreen</div>
 <div id="wakelock-dot"></div>
 
 <script>
 // ── SERVICE WORKER ─────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () =>
-    navigator.serviceWorker.register('sw.js').catch(() => {})
-  );
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .catch(err => console.warn('SW:', err));
+  });
 }
 
 // ── CLOCK ──────────────────────────────────────────────
@@ -221,21 +236,22 @@ function pad2(n) { return String(n).padStart(2,'0'); }
 
 function updateClock() {
   const now = new Date();
-  document.getElementById('time-hhmm').textContent =
-    `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
-  document.getElementById('time-ss').textContent = pad2(now.getSeconds());
+  document.getElementById('time-hhmm').textContent = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  document.getElementById('time-ss').textContent   = pad2(now.getSeconds());
   document.getElementById('date-display').textContent =
     `${DAYS[now.getDay()]} ${pad2(now.getDate())} ${MONTHS[now.getMonth()]}`;
 }
+
 setInterval(updateClock, 1000);
 updateClock();
 
 // ── FULLSCREEN ─────────────────────────────────────────
-// PWA installed app: manifest display:fullscreen handles it — no JS needed.
-// Browser tab: JS fullscreen on tap, with 2.5s suppress after swipe-up exit.
+// On Android the swipe-up gesture is a system gesture outside the webview,
+// so touchstart never fires for it. Instead we detect fullscreen EXIT via
+// fullscreenchange and suppress re-entry for 2500ms, giving the nav bar
+// time to stay visible. A deliberate tap anywhere re-enters fullscreen.
 
-const isPWA = window.matchMedia('(display-mode: fullscreen)').matches
-           || window.navigator.standalone === true;
+const fsHint = document.getElementById('fs-hint');
 
 let fsSuppress = false;
 let fsSuppressTimer = null;
@@ -247,53 +263,56 @@ function suppressFullscreen(ms) {
 }
 
 async function tryFullscreen() {
-  if (isPWA) return;                    // PWA handles its own fullscreen
   if (document.fullscreenElement) return;
   if (fsSuppress) return;
   try {
-    const el = document.documentElement;
-    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    const el  = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
     if (req) await req.call(el);
   } catch(e) {}
 }
 
-if (!isPWA) {
-  document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) {
-      suppressFullscreen(2500);
-    }
-  });
-  document.addEventListener('click',    tryFullscreen);
-  document.addEventListener('touchend', tryFullscreen, { passive: true });
-  tryFullscreen();
-}
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) {
+    // Fullscreen was exited (swipe-up or back) — suppress re-entry for 2.5s
+    suppressFullscreen(2500);
+    fsHint.style.opacity = '1';
+  } else {
+    fsHint.style.opacity = '0';
+  }
+});
+
+// Tap anywhere (after suppress window) to re-enter fullscreen
+document.addEventListener('click', tryFullscreen);
+document.addEventListener('touchend', tryFullscreen, { passive: true });
 
 // ── WAKE LOCK ──────────────────────────────────────────
+let wakeLock = null;
 const dot = document.getElementById('wakelock-dot');
 
 async function requestWakeLock() {
   try {
-    const wl = await navigator.wakeLock.request('screen');
+    wakeLock = await navigator.wakeLock.request('screen');
     dot.classList.add('active');
-    wl.addEventListener('release', () => dot.classList.remove('active'));
+    wakeLock.addEventListener('release', () => dot.classList.remove('active'));
   } catch(e) {}
 }
 
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') requestWakeLock();
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') await requestWakeLock();
 });
+
 requestWakeLock();
 
-// ── HEART RATE ─────────────────────────────────────────
+// ── HEART RATE VIA WEB BLUETOOTH ──────────────────────
 let hrReadings = [], hrMax = 0;
-let isConnected = false;
-let autoTimer = null;
 
 function updateHRDisplay(bpm) {
   const el = document.getElementById('hr-bpm');
   el.textContent = bpm;
   el.classList.add('pulse');
   setTimeout(() => el.classList.remove('pulse'), 200);
+
   hrReadings.push(bpm);
   if (bpm > hrMax) hrMax = bpm;
   const avg = Math.round(hrReadings.reduce((a,b) => a+b, 0) / hrReadings.length);
@@ -306,79 +325,14 @@ function parseHR(value) {
   return (flags & 0x01) ? value.getUint16(1, true) : value.getUint8(1);
 }
 
-async function connectToDevice(device) {
-  const status = document.getElementById('hr-status');
-  const btn    = document.getElementById('connect-btn');
-
-  status.textContent = `connecting to ${device.name || 'device'}...`;
-
-  // Remove any old listener before adding new one
-  const onDisconnect = () => {
-    isConnected = false;
-    document.getElementById('hr-bpm').textContent = '--';
-    status.textContent = 'disconnected — retrying...';
-    btn.textContent    = '[ RECONNECT ]';
-    btn.style.display  = 'block';
-    autoTimer = setTimeout(autoConnect, 4000);
-  };
-  device.removeEventListener('gattserverdisconnected', onDisconnect);
-  device.addEventListener('gattserverdisconnected', onDisconnect);
-
-  const server  = await device.gatt.connect();
-  const service = await server.getPrimaryService('heart_rate');
-  const char    = await service.getCharacteristic('heart_rate_measurement');
-  await char.startNotifications();
-  char.addEventListener('characteristicvaluechanged',
-    e => updateHRDisplay(parseHR(e.target.value)));
-
-  isConnected = true;
-  status.textContent = `● live  ${device.name || 'strap'}`;
-  btn.style.display  = 'none';
-}
-
-async function autoConnect() {
-  if (isConnected || !navigator.bluetooth) return;
-  clearTimeout(autoTimer);
-
-  const status = document.getElementById('hr-status');
-
-  try {
-    // getDevices() returns previously-permitted devices without a prompt
-    const devices = await navigator.bluetooth.getDevices();
-
-    if (!devices.length) {
-      // Nothing ever paired — wait for manual connect
-      status.textContent = 'tap to connect polar h10';
-      return;
-    }
-
-    // Prefer a polar/heart device, else first in list
-    const dev = devices.find(d => {
-      const n = (d.name || '').toLowerCase();
-      return n.includes('polar') || n.includes('h10') || n.includes('heart');
-    }) || devices[0];
-
-    status.textContent = `auto-connecting to ${dev.name || 'device'}...`;
-    await connectToDevice(dev);
-
-  } catch(e) {
-    if (!isConnected) {
-      status.textContent = 'waiting for strap...';
-      autoTimer = setTimeout(autoConnect, 4000);
-    }
-  }
-}
-
 async function connectHR() {
+  const btn    = document.getElementById('connect-btn');
+  const status = document.getElementById('hr-status');
+
   if (!navigator.bluetooth) {
-    document.getElementById('hr-status').textContent =
-      'bluetooth not available';
+    status.textContent = 'bluetooth unavailable — check brave://flags';
     return;
   }
-
-  clearTimeout(autoTimer);
-  const btn    = document.getElementById('connect-btn');
-  const status = document.getElementById('hr-status');
 
   try {
     status.textContent = 'scanning...';
@@ -389,18 +343,32 @@ async function connectHR() {
       optionalServices: ['heart_rate']
     });
 
-    await connectToDevice(device);
+    status.textContent = `connecting to ${device.name || 'device'}...`;
+
+    device.addEventListener('gattserverdisconnected', () => {
+      status.textContent = 'disconnected — tap to reconnect';
+      btn.textContent    = '[ RECONNECT ]';
+      btn.style.display  = 'block';
+      document.getElementById('hr-bpm').textContent = '--';
+    });
+
+    const server  = await device.gatt.connect();
+    const service = await server.getPrimaryService('heart_rate');
+    const char    = await service.getCharacteristic('heart_rate_measurement');
+
+    await char.startNotifications();
+    char.addEventListener('characteristicvaluechanged', (e) => {
+      updateHRDisplay(parseHR(e.target.value));
+    });
+
+    status.textContent = `● live  ${device.name || 'strap'}`;
+    btn.style.display  = 'none';
 
   } catch(e) {
-    status.textContent = e.name === 'NotFoundError'
-      ? 'no device selected'
-      : `error: ${e.message}`;
-    btn.textContent = '[ CONNECT STRAP ]';
+    status.textContent = e.name === 'NotFoundError' ? 'no device selected' : `error: ${e.message}`;
+    btn.textContent    = '[ CONNECT STRAP ]';
   }
 }
-
-// Kick off auto-connect 1.5s after load
-window.addEventListener('load', () => setTimeout(autoConnect, 1500));
 </script>
 </body>
 </html>
