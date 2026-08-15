@@ -1,8 +1,8 @@
-# Gym HUD
+# GymHUD
 
 A fullscreen heads-up display for gym use, hosted as a Progressive Web App (PWA) on GitHub Pages.
 
-**Live:** https://GarryHorsnell.github.io/gym-hud/
+**Live:** https://GarryHorsnell.github.io/GymHUD/
 
 ---
 
