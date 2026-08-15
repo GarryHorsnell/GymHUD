@@ -1,6 +1,6 @@
 {
-  "name": "Gym HUD",
-  "short_name": "Gym HUD",
+  "name": "GymHUD",
+  "short_name": "GymHUD",
   "description": "Heart rate and clock heads-up display",
   "start_url": "./index.html",
   "scope": "./",
