@@ -63,9 +63,7 @@ Web Bluetooth requires a user gesture to initiate — connection cannot be fully
 
 ## Known limitations
 
-- **Nav bar flicker** — Android's gesture navigation bar briefly appears on swipe-up. This is a Chrome PWA limitation; a TWA (Trusted Web Activity) wrapper would eliminate it.
 - **Auto-connect** — `getDevices()` API requires the experimental permissions backend flag and the strap to be actively advertising on launch. Manual connect tap is the reliable approach.
-- **White bar (top)** — Under investigation; related to `viewport-fit` and Android status bar handling.
 
 ---
 
